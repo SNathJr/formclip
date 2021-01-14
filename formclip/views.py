@@ -1,3 +1,6 @@
+import os
+import json
+
 from django.views import View
 from django.middleware import csrf
 from django.shortcuts import render, redirect
@@ -12,4 +15,15 @@ from .models import *
 
 class IndexView(View):
     def get(self, request):
-        return HttpResponse('It works!')
+        return HttpResponse('Use post method to save your data!')
+    
+    def post(self, request):
+        try:
+            DataStore.objects.create(
+                header_data=json.dumps(dict(request.META)), 
+                form_data=json.dumps(dict(request.POST))
+            )
+        except:
+            return JsonResponse({"success": False})
+        else:
+            return JsonResponse({"success": True})
