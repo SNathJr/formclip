@@ -21,5 +21,9 @@ from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.IndexView.as_view(), name='index')
+    path('', views.IndexView.as_view(), name='index'),
+    path('submit/<str:username>', views.FormSubmitView.as_view(), name='submit_form'),
+    path('signup', views.SignupView.as_view(), name='signup'),
+    path('signin', views.SigninView.as_view(), name='signin'),
+    path('signout', views.SignoutView.as_view(), name='signout'),
 ]
