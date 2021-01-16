@@ -17,20 +17,6 @@ from .models import *
 class IndexView(View):
     def get(self, request):
         return HttpResponse('Use post method to save your data!')
-    
-    def post(self, request):
-        metaItemsToCatch = ['HTTP_HOST', 'HTTP_ACCEPT_ENCODING', 'REMOTE_HOST', 'REMOTE_ADDR']
-        try:
-            DataStore.objects.create(
-                created_at=datetime.now(),
-                header_data=json.dumps({item: request.META[item] for item in metaItemsToCatch}), 
-                form_data=json.dumps(dict(request.POST))
-            )
-        except:
-            return JsonResponse({"success": False})
-        else:
-            return JsonResponse({"success": True})
-        return JsonResponse(request.headers)
 
 class SignupView(View):
     def post(self, request):
@@ -102,7 +88,7 @@ class SigninView(View):
                     )
             # if user does not exist
             else:
-                return JsonResponse(status=404, data={'success': False, 'message':'This account does not exist, please create.'})
+                return JsonResponse(status=404, data={'success': False, 'message':'This account does not exist, please signup.'})
 
 class SignoutView(View):
     def get(self, request):
@@ -111,19 +97,39 @@ class SignoutView(View):
 
 class FormSubmitView(View):
     def post(self, request, username):
-        metaItemsToCatch = ['HTTP_HOST', 'HTTP_ACCEPT_ENCODING', 'REMOTE_HOST', 'REMOTE_ADDR']
+        metaItemsToCatch = [
+            'HTTP_HOST', 'HTTP_USER_AGENT', 'HTTP_ACCEPT_ENCODING', 
+            'REMOTE_HOST', 'REMOTE_ADDR'
+        ]
+        print(request.META)
         user = User.objects.filter(username = username, is_active=True).first()
         if user:
-            try:
-                DataStore.objects.create(
-                    created_at=datetime.now(),
-                    header_data=json.dumps({item: request.META[item] for item in metaItemsToCatch}), 
-                    form_data=json.dumps(dict(request.POST))
-                )
-            except:
-                return JsonResponse(status=400, data={"success": False, "message": "Could not submit, try again!"})
+            user_url = UserUrlMap.objects.filter(user=user, url=request.get_host()).first()
+            if user_url:
+                if user_url.is_active:
+                    try:
+                        DataStore.objects.create(
+                            user=user,
+                            url=user_url,
+                            created_at=datetime.now(),
+                            header_data=json.dumps({item: request.META[item] for item in metaItemsToCatch}), 
+                            form_data=json.dumps(dict(request.POST))
+                        )
+                    except:
+                        return JsonResponse(status=400, data={"success": False, "message": "Could not submit, try again!"})
+                    else:
+                        return JsonResponse({"success": True, "message": "Form submitted successfully!"})
+                else:
+                    return JsonResponse(
+                        status=400, 
+                        data={"success": False, "message": f"Form not submitted, you need to activate the originating domain {request.get_host()} first!"}
+                    )
             else:
-                return JsonResponse({"success": True, "message": "Form submitted successfully!"})
+                UserUrlMap.objects.create(user=user, url=request.get_host())
+                return JsonResponse(
+                    status=400, 
+                    data={"success": False, "message": f"Form not submitted, you need to verify the originating domain {request.get_host()} first!"}
+                )
         else:
             return JsonResponse(
                 status=403, 
